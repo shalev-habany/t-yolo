@@ -1,0 +1,27 @@
+# T-YOLO: Exploiting Temporal Context for Tiny Object Detection
+# YOLOv8 port — VisDrone dataset
+# Paper: Corsel et al., WACVW 2023
+
+path: ./data/VisDrone          # dataset root
+train: sequences/train         # relative to path — folders of frame sequences
+val:   sequences/val
+test:  sequences/test
+
+# VisDrone class names (10 classes)
+nc: 10
+names:
+  0: pedestrian
+  1: people
+  2: bicycle
+  3: car
+  4: van
+  5: truck
+  6: tricycle
+  7: awning-tricycle
+  8: bus
+  9: motor
+
+# Temporal settings
+temporal_shift: 3              # s — number of frames between f_t and support frames
+                               # adjust to match effective fps of your sequences
+frame_registration: true       # required for VisDrone (moving camera)

@@ -1,0 +1,74 @@
+# T2-YOLOv8 — Two-stream temporal detection model configuration
+# Paper: "Exploiting Temporal Context for Tiny Object Detection" (Corsel et al., WACVW 2023)
+#
+# This file is loaded by train.py and val.py.
+# The model architecture itself is defined in models/t2_yolov8.py.
+#
+# Input streams:
+#   X_app ∈ R^{H×W×3}  — 3-channel grayscale temporal stack (appearance)
+#   X_mot ∈ R^{H×W×2}  — 2-channel absolute frame difference (motion)
+#
+# Architecture:
+#   Main backbone:   YOLOv8{scale} (see 'scale' below)
+#   Motion backbone: YOLOv8s always, except Nano main → Nano motion
+#   Fusion:          Concat at P3/P4/P5 between motion and appearance streams
+#   Neck+Head:       FPN neck + 3-scale Detect (P3/P4/P5)
+
+# --- Model ---
+model: t2                    # 't' = single-stream T-YOLOv8 | 't2' = two-stream T2-YOLOv8
+scale: x                     # n / s / m / l / x
+
+# --- Dataset ---
+data: configs/visdrone.yaml
+
+# --- Training (paper §4.1 — SGD settings) ---
+epochs: 300
+batch_size: 16               # adjust to GPU VRAM
+img_size: 640                # inference resolution
+tile_size: 320               # training tile crop size (paper uses 320×320 tiles)
+tile_overlap: 0.05           # 5% overlap between tiles (paper §3.3)
+temporal_shift: 3            # s — frame offset for triplet (t-s, t, t+s)
+
+# Optimiser
+optimizer: sgd
+lr0: 3.34e-3                 # initial learning rate (paper Table 1)
+lrf: 0.01                    # final lr = lr0 * lrf  (cosine schedule)
+momentum: 0.937
+weight_decay: 2.5e-4         # paper Table 1
+
+# Warmup
+warmup_epochs: 3.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.1
+
+# --- Augmentation ---
+augment: true
+mosaic_p: 0.5                # Temporal Mosaic probability
+mixup_p: 0.1                 # Temporal MixUp probability
+hflip_p: 0.5
+vflip_p: 0.0
+scale_range: [0.5, 1.5]
+translate_frac: 0.1
+
+# --- Frame registration (required for VisDrone moving camera) ---
+frame_registration: true
+registration_method: ecc     # 'ecc' (fast) or 'sift' (robust)
+
+# --- Pretrained weights ---
+# For T-YOLOv8 (single stream): COCO YOLOv8{scale}.pt — auto-downloaded
+# For T2-YOLOv8 (two stream):
+#   app_weights: path to trained T-YOLOv8 checkpoint (transfer learning)
+#   mot_weights: COCO YOLOv8s.pt — auto-downloaded
+app_weights: null            # set to e.g. 'runs/t_yolov8x/weights/best.pt'
+mot_weights: null            # null = auto-download yolov8s.pt
+
+# --- Output ---
+project: runs
+name: t2_yolov8x_visdrone
+save_period: 10              # save checkpoint every N epochs
+val_period: 10               # run val mAP every N epochs (also always on final epoch)
+
+# --- Misc ---
+workers: 8
+device: "0"                  # CUDA device index, or 'cpu'
+seed: 42
