@@ -47,12 +47,19 @@ echo "Downloading VisDrone2019-DET to: $DST"
 # ---------------------------------------------------------------------------
 # Download URLs
 # These are the Google Drive IDs used by the official VisDrone repository.
+# (Using parallel arrays for bash 3.2 compatibility on macOS)
 # ---------------------------------------------------------------------------
 
-declare -A ARCHIVES=(
-    ["VisDrone2019-DET-train.zip"]="1a2oHjcEcwXP3DrptG-GQ2YGCV3-3n9bm"
-    ["VisDrone2019-DET-val.zip"]="1bxK5zgLn0_L8x276eKkuYA_FzwCIjb59"
-    ["VisDrone2019-DET-test-dev.zip"]="1PFdW_VFSCfZ_sTSZAGjQdifF_Xd5mf0V"
+ARCHIVE_NAMES=(
+    "VisDrone2019-DET-train.zip"
+    "VisDrone2019-DET-val.zip"
+    "VisDrone2019-DET-test-dev.zip"
+)
+
+ARCHIVE_IDS=(
+    "1a2oHjcEcwXP3DrptG-GQ2YGCV3-3n9bm"
+    "1bxK5zgLn0_L8x276eKkuYA_FzwCIjb59"
+    "1PFdW_VFSCfZ_sTSZAGjQdifF_Xd5mf0V"
 )
 
 download_gdrive() {
@@ -80,7 +87,9 @@ download_gdrive() {
     fi
 }
 
-for archive in "${!ARCHIVES[@]}"; do
+for i in "${!ARCHIVE_NAMES[@]}"; do
+    archive="${ARCHIVE_NAMES[$i]}"
+    file_id="${ARCHIVE_IDS[$i]}"
     out="$DST/$archive"
     split_name="${archive%.zip}"
 
@@ -91,7 +100,7 @@ for archive in "${!ARCHIVES[@]}"; do
 
     if [[ ! -f "$out" ]]; then
         echo "  Downloading $archive ..."
-        download_gdrive "${ARCHIVES[$archive]}" "$out"
+        download_gdrive "$file_id" "$out"
     else
         echo "  [skip] $archive already downloaded"
     fi

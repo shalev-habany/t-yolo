@@ -89,6 +89,30 @@ def build_model(
     return model
 
 
+class _TripletProvider:
+    """
+    Picklable callable that returns a random (f_pre, f_key, f_post, labels)
+    triplet from a TemporalDataset's sample list.
+
+    A plain closure cannot be pickled by Python's spawn-based multiprocessing
+    (the default on macOS), so we use a top-level class instead.
+    """
+
+    def __init__(self, samples: list) -> None:
+        self.samples = samples
+
+    def __call__(self):
+        import cv2
+        from utils.temporal_dataset import _load_labels
+
+        s = self.samples[random.randint(0, len(self.samples) - 1)]
+        f_pre = cv2.imread(str(s["pre_path"]), cv2.IMREAD_GRAYSCALE)
+        f_key = cv2.imread(str(s["key_path"]), cv2.IMREAD_GRAYSCALE)
+        f_post = cv2.imread(str(s["post_path"]), cv2.IMREAD_GRAYSCALE)
+        labels = _load_labels(s["label_path"])
+        return f_pre, f_key, f_post, labels
+
+
 def build_dataset(
     split_root: str | Path,
     cfg: dict,
@@ -121,25 +145,9 @@ def build_dataset(
         augment=augment,
     )
 
-    # Wire up Temporal Mosaic / MixUp: augmentor needs a triplet provider
+    # Wire up Temporal Mosaic / MixUp: augmentor needs a triplet provider.
+    # Use a top-level picklable class so DataLoader workers (spawn) can pickle it.
     if augment and (cfg.get("mosaic_p", 0.0) > 0 or cfg.get("mixup_p", 0.0) > 0):
-
-        def triplet_provider():
-            idx = random.randint(0, len(dataset) - 1)
-            # Return raw frames + labels for augmentation (before tensor conversion).
-            # Always work from the full-frame entry so that mosaic tiles are not
-            # accidentally double-cropped.
-            import cv2
-
-            s = dataset.samples[idx]
-            f_pre = cv2.imread(str(s["pre_path"]), cv2.IMREAD_GRAYSCALE)
-            f_key = cv2.imread(str(s["key_path"]), cv2.IMREAD_GRAYSCALE)
-            f_post = cv2.imread(str(s["post_path"]), cv2.IMREAD_GRAYSCALE)
-            from utils.temporal_dataset import _load_labels
-
-            labels = _load_labels(s["label_path"])
-            return f_pre, f_key, f_post, labels
-
         augmentor = TemporalAugmentor(
             img_size=tile_size or img_size,
             hflip_p=cfg.get("hflip_p", 0.5),
@@ -148,7 +156,7 @@ def build_dataset(
             translate_frac=cfg.get("translate_frac", 0.1),
             mosaic_p=cfg.get("mosaic_p", 0.5),
             mixup_p=cfg.get("mixup_p", 0.1),
-            triplet_provider=triplet_provider,
+            triplet_provider=_TripletProvider(dataset.samples),
         )
         dataset.augmentor = augmentor  # type: ignore[assignment]
 
@@ -441,6 +449,11 @@ def parse_args() -> argparse.Namespace:
         help="Path to training config YAML (default: configs/t2_yolov8.yaml)",
     )
     parser.add_argument(
+        "--data",
+        default=None,
+        help="Path to dataset config YAML (e.g. configs/visdrone.yaml). Overrides config.",
+    )
+    parser.add_argument(
         "--model",
         choices=["t", "t2"],
         default=None,
@@ -492,6 +505,8 @@ if __name__ == "__main__":
         cfg = yaml.safe_load(f)
 
     # CLI overrides
+    if args.data is not None:
+        cfg["data"] = args.data
     if args.model is not None:
         cfg["model"] = args.model
     if args.scale is not None:

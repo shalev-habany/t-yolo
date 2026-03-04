@@ -2,8 +2,8 @@
 # YOLOv8 port — VisDrone dataset
 # Paper: Corsel et al., WACVW 2023
 
-path: ./data/VisDrone          # dataset root
-train: sequences/train         # relative to path — folders of frame sequences
+path: ./converted_data/          # dataset root
+train: sequences/val         # relative to path — folders of frame sequences
 val:   sequences/val
 test:  sequences/test
 

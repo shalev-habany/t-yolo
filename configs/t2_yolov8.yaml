@@ -16,7 +16,7 @@
 
 # --- Model ---
 model: t2                    # 't' = single-stream T-YOLOv8 | 't2' = two-stream T2-YOLOv8
-scale: x                     # n / s / m / l / x
+scale: n                     # n / s / m / l / x
 
 # --- Dataset ---
 data: configs/visdrone.yaml
@@ -64,7 +64,7 @@ mot_weights: null            # null = auto-download yolov8s.pt
 
 # --- Output ---
 project: runs
-name: t2_yolov8x_visdrone
+name: t2_yolov8n_visdrone
 save_period: 10              # save checkpoint every N epochs
 val_period: 10               # run val mAP every N epochs (also always on final epoch)
 

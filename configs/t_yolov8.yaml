@@ -10,6 +10,65 @@
 #
 # Detection heads: P3/8, P4/16, P5/32  (3 scales — no P6, faithful to paper)
 
+# --- Model ---
+model: t                     # 't' = single-stream T-YOLOv8 | 't2' = two-stream T2-YOLOv8
+scale: n                     # n / s / m / l / x
+
+# --- Dataset ---
+data: configs/visdrone.yaml
+
+# --- Training (paper §4.1 — SGD settings) ---
+epochs: 300
+batch_size: 16               # adjust to GPU VRAM
+img_size: 640                # inference resolution
+tile_size: 320               # training tile crop size (paper uses 320×320 tiles)
+tile_overlap: 0.05           # 5% overlap between tiles (paper §3.3)
+temporal_shift: 3            # s — frame offset for triplet (t-s, t, t+s)
+
+# Optimiser
+optimizer: sgd
+lr0: 3.34e-3                 # initial learning rate (paper Table 1)
+lrf: 0.01                    # final lr = lr0 * lrf  (cosine schedule)
+momentum: 0.937
+weight_decay: 2.5e-4         # paper Table 1
+
+# Warmup
+warmup_epochs: 3.0
+warmup_momentum: 0.8
+warmup_bias_lr: 0.1
+
+# --- Augmentation ---
+augment: true
+mosaic_p: 0.5                # Temporal Mosaic probability
+mixup_p: 0.1                 # Temporal MixUp probability
+hflip_p: 0.5
+vflip_p: 0.0
+scale_range: [0.5, 1.5]
+translate_frac: 0.1
+
+# --- Frame registration (required for VisDrone moving camera) ---
+frame_registration: true
+registration_method: ecc     # 'ecc' (fast) or 'sift' (robust)
+
+# --- Pretrained weights ---
+# COCO YOLOv8{scale}.pt — auto-downloaded if null
+app_weights: null
+
+# --- Output ---
+project: runs
+name: t_yolov8n_visdrone
+save_period: 10              # save checkpoint every N epochs
+val_period: 10               # run val mAP every N epochs (also always on final epoch)
+
+# --- Misc ---
+workers: 8
+device: "0"                  # CUDA device index, or 'cpu'
+seed: 42
+
+# ---------------------------------------------------------------------------
+# Model architecture (passed to model builder — not used by train loop directly)
+# ---------------------------------------------------------------------------
+
 # VisDrone
 nc: 10
 scales:

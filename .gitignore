@@ -48,6 +48,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+data
 
 # Translations
 *.mo
@@ -71,6 +72,8 @@ docs/_build/
 
 # PyBuilder
 target/
+*data*
+*.pt
 
 # Jupyter Notebook
 .ipynb_checkpoints
