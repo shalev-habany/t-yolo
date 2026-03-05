@@ -83,10 +83,7 @@ class FrameRegistrar:
         if H is None:
             return src
 
-        if src.ndim == 2:
-            return cv2.warpPerspective(src, H, (w, h))
-        else:
-            return cv2.warpPerspective(src, H, (w, h))
+        return cv2.warpPerspective(src, H, (w, h))
 
 
 # ---------------------------------------------------------------------------

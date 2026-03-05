@@ -51,16 +51,6 @@ def _value_jitter_delta(frame: np.ndarray, delta: int) -> np.ndarray:
     return np.clip(frame, 0, 255).astype(np.uint8)
 
 
-def _value_jitter(frame: np.ndarray, magnitude: float) -> np.ndarray:
-    """
-    Apply random brightness (value channel) jitter to a grayscale frame.
-    Magnitude: fraction of 255.  Samples its own delta — use only when
-    independent-per-frame jitter is intentional.
-    """
-    delta = int(random.uniform(-magnitude, magnitude) * 255)
-    return _value_jitter_delta(frame, delta)
-
-
 def _clip_boxes(labels: np.ndarray) -> np.ndarray:
     """Clip normalised box coordinates to [0, 1] and remove degenerate boxes."""
     if len(labels) == 0:

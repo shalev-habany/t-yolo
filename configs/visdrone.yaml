@@ -3,7 +3,7 @@
 # Paper: Corsel et al., WACVW 2023
 
 path: ./converted_data/          # dataset root
-train: sequences/val         # relative to path — folders of frame sequences
+train: sequences/train       # relative to path — folders of frame sequences
 val:   sequences/val
 test:  sequences/test
 

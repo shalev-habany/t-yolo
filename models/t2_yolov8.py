@@ -55,6 +55,8 @@ from ultralytics.utils import LOGGER
 from ultralytics.utils.loss import v8DetectionLoss
 from ultralytics.utils.torch_utils import initialize_weights
 
+from utils.weights import transfer_weights
+
 _HERE = Path(__file__).parent
 _CONFIG_DIR = _HERE.parent / "configs"
 _T_YAML = _CONFIG_DIR / "t_yolov8.yaml"
@@ -451,20 +453,28 @@ class T2YOLOv8(nn.Module):
         Per paper §3.2: transfer T-YOLOv8 weights to main stream;
         initialise motion stream from YOLOv8s COCO weights.
         """
+        from ultralytics.nn.tasks import load_checkpoint
+
         mot_scale = _MOTION_SCALE[self.scale]
 
         # --- Load motion stream weights (YOLOv8s/n COCO) ---
         if mot_weights is None:
             mot_weights = f"yolov8{mot_scale}.pt"
         LOGGER.info(f"T2-YOLOv8: loading motion stream weights from {mot_weights}")
-        _load_backbone_weights(self.mot_backbone, mot_weights)
+        src_model, _ = load_checkpoint(mot_weights, device="cpu")
+        transfer_weights(
+            src_model.state_dict(), self.mot_backbone, key_map=_backbone_key_map
+        )
 
         # --- Load appearance stream weights (trained T-YOLOv8) ---
         if app_weights is not None:
             LOGGER.info(
                 f"T2-YOLOv8: loading appearance stream weights from {app_weights}"
             )
-            _load_backbone_weights(self.app_backbone, app_weights)
+            src_model, _ = load_checkpoint(app_weights, device="cpu")
+            transfer_weights(
+                src_model.state_dict(), self.app_backbone, key_map=_backbone_key_map
+            )
         else:
             LOGGER.info(
                 "T2-YOLOv8: no appearance stream weights provided; backbone is random"
@@ -486,55 +496,28 @@ class T2YOLOv8(nn.Module):
 
 
 # ---------------------------------------------------------------------------
-# Helper: partial weight transfer into a _BackboneExtractor
+# Key-map helper for backbone weight transfer
 # ---------------------------------------------------------------------------
 
 
-def _load_backbone_weights(
-    backbone: _BackboneExtractor,
-    weights_path: str,
-) -> None:
+def _backbone_key_map(k: str) -> str:
     """
-    Transfer matching weights from a YOLOv8 checkpoint into a _BackboneExtractor.
-    Keys that do not match in shape are skipped.
+    Remap source DetectionModel keys to _BackboneExtractor keys.
+
+    DetectionModel stores backbone layers as "model.{i}.XXX" (i = 0..9).
+    _BackboneExtractor stores them as "layers.{i}.XXX".
+    Keys for layers i > 9 (neck / head) are intentionally unmapped so they
+    get skipped by transfer_weights (shape won't match anyway).
     """
-    from ultralytics.nn.tasks import load_checkpoint
-
-    src_model, _ = load_checkpoint(weights_path, device="cpu")  # (model, ckpt_dict)
-
-    # The _BackboneExtractor stores layers as self.layers[0..9].
-    # In the source DetectionModel they are model.model[0..9].
-    # Build a key mapping: "layers.{i}.*" -> "model.{i}.*"
-    state_src = src_model.state_dict()
-    state_dst = backbone.state_dict()
-
-    transfer: dict[str, torch.Tensor] = {}
-    skipped = []
-
-    # Map "model.{i}.XXX" -> "layers.{i}.XXX"  for i in 0..9
-    for k_src, v_src in state_src.items():
-        parts = k_src.split(".")
-        if len(parts) < 2:
-            continue
-        # Source key starts with "model.{idx}."
-        if parts[0] != "model":
-            continue
-        try:
-            idx = int(parts[1])
-        except ValueError:
-            continue
-        if idx > 9:
-            continue
-        k_dst = "layers." + ".".join(parts[1:])
-        if k_dst in state_dst and state_dst[k_dst].shape == v_src.shape:
-            transfer[k_dst] = v_src
-        else:
-            skipped.append(k_src)
-
-    state_dst.update(transfer)
-    backbone.load_state_dict(state_dst)
-
-    LOGGER.info(
-        f"  Transferred {len(transfer)} tensors "
-        f"({len(skipped)} skipped due to shape mismatch)"
-    )
+    if not k.startswith("model."):
+        return k
+    parts = k.split(".")
+    if len(parts) < 2:
+        return k
+    try:
+        idx = int(parts[1])
+    except ValueError:
+        return k
+    if idx > 9:
+        return k  # neck / head — will be skipped
+    return "layers." + ".".join(parts[1:])

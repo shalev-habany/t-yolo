@@ -29,6 +29,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from utils.device import resolve_device
+
 PASS = "[PASS]"
 FAIL = "[FAIL]"
 
@@ -107,7 +109,7 @@ def test_t2_yolov8_forward(scale: str, device: torch.device) -> None:
 
 
 def test_tiling_helpers() -> None:
-    from utils.temporal_dataset import _compute_tile_positions, _clip_labels_to_tile
+    from utils.tiling import _compute_tile_positions, _clip_labels_to_tile
 
     # Basic grid
     tiles = _compute_tile_positions(1080, 1920, 320, 320, 0.05)
@@ -186,7 +188,7 @@ def test_collate_fn() -> None:
 
 
 def test_decode_predictions() -> None:
-    from val import decode_predictions
+    from utils.metrics import decode_predictions
 
     # Fake raw output (B=1, 4+10=14 channels, A=2100 anchors)
     raw = torch.randn(1, 14, 2100)
@@ -212,13 +214,7 @@ def main() -> None:
     args = parser.parse_args()
 
     dev_str = args.device
-    if dev_str == "cpu":
-        device = torch.device("cpu")
-    elif torch.cuda.is_available():
-        device = torch.device(f"cuda:{dev_str}")
-    else:
-        print("CUDA not available, using CPU")
-        device = torch.device("cpu")
+    device = resolve_device(dev_str)
 
     print(f"Device: {device}\n")
 

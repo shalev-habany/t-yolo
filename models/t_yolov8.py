@@ -38,6 +38,8 @@ import torch.nn as nn
 from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils import LOGGER
 
+from utils.weights import transfer_weights
+
 # Path to our YAML config (adjacent configs/ directory)
 _HERE = Path(__file__).parent
 _CONFIG_DIR = _HERE.parent / "configs"
@@ -125,28 +127,10 @@ class TYOLOv8(DetectionModel):
             weights_path, device="cpu"
         )  # returns (model, ckpt_dict)
 
-        # Transfer matching weights (skip incompatible layers gracefully)
-        state_src = pretrained.state_dict()
-        state_dst = self.state_dict()
-
-        transfer = {}
-        skipped = []
-        for k, v in state_src.items():
-            if k in state_dst and state_dst[k].shape == v.shape:
-                transfer[k] = v
-            else:
-                skipped.append(k)
-
-        state_dst.update(transfer)
-        self.load_state_dict(state_dst)
-
-        if skipped:
-            LOGGER.info(
-                f"T-YOLOv8: skipped {len(skipped)} layers with shape mismatch "
-                f"(expected for Detect head with nc={self._nc})"
-            )
+        n_transferred, n_total = transfer_weights(pretrained.state_dict(), self)
         LOGGER.info(
-            f"T-YOLOv8: transferred {len(transfer)}/{len(state_src)} weight tensors"
+            f"T-YOLOv8: transferred {n_transferred}/{n_total} weight tensors "
+            f"(skipped layers expected for Detect head with nc={self._nc})"
         )
         return self
 
