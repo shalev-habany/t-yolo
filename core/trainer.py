@@ -65,12 +65,23 @@ class _TripletProvider:
         import cv2
         from utils.temporal_dataset import _load_labels
 
-        s = self.samples[random.randint(0, len(self.samples) - 1)]
-        f_pre = cv2.imread(str(s["pre_path"]), cv2.IMREAD_GRAYSCALE)
-        f_key = cv2.imread(str(s["key_path"]), cv2.IMREAD_GRAYSCALE)
-        f_post = cv2.imread(str(s["post_path"]), cv2.IMREAD_GRAYSCALE)
-        labels = _load_labels(s["label_path"])
-        return f_pre, f_key, f_post, labels
+        for _ in range(10):
+            s = self.samples[random.randint(0, len(self.samples) - 1)]
+            f_pre = cv2.imread(str(s["pre_path"]), cv2.IMREAD_GRAYSCALE)
+            f_key = cv2.imread(str(s["key_path"]), cv2.IMREAD_GRAYSCALE)
+            f_post = cv2.imread(str(s["post_path"]), cv2.IMREAD_GRAYSCALE)
+            if f_pre is None or f_key is None or f_post is None:
+                # File unreadable (NFS hiccup, corrupt file, etc.) — try another sample
+                continue
+            if f_pre.size == 0 or f_key.size == 0 or f_post.size == 0:
+                continue
+            labels = _load_labels(s["label_path"])
+            return f_pre, f_key, f_post, labels
+
+        raise RuntimeError(
+            "_TripletProvider: failed to load a valid triplet after 10 attempts. "
+            "Check that frame files are accessible from DataLoader worker processes."
+        )
 
 
 # ---------------------------------------------------------------------------

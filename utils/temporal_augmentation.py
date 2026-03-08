@@ -313,6 +313,11 @@ class TemporalAugmentor:
 
         for (r0, c0, r1, c1), (fp, fk, fpo, lbl) in zip(quads, triplets):
             qh, qw = r1 - r0, c1 - c0
+            # Guard against None or zero-size frames (e.g. failed imread in provider)
+            if fp is None or fk is None or fpo is None:
+                continue
+            if fp.size == 0 or fk.size == 0 or fpo.size == 0:
+                continue
             # Resize each frame in the triplet to the quadrant size
             rp = cv2.resize(fp, (qw, qh), interpolation=cv2.INTER_LINEAR)
             rk = cv2.resize(fk, (qw, qh), interpolation=cv2.INTER_LINEAR)
