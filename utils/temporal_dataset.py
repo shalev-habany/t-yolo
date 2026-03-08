@@ -162,9 +162,12 @@ class TemporalDataset(Dataset):
             if not frames_dir.exists():
                 continue
 
-            # Sorted list of ALL frame paths in this sequence
+            # Sorted list of ALL frame paths in this sequence.
+            # Exclude hidden files (e.g. macOS ._<name> metadata files).
             all_frames = sorted(
-                list(frames_dir.glob("*.jpg")) + list(frames_dir.glob("*.png"))
+                p
+                for p in list(frames_dir.glob("*.jpg")) + list(frames_dir.glob("*.png"))
+                if not p.name.startswith(".")
             )
             if not all_frames:
                 continue
